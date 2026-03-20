@@ -1,0 +1,672 @@
+import re
+from parsel import Selector
+import requests
+import time
+import json
+import uuid
+import logging
+from tqdm import tqdm
+import urllib.parse
+import os, sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+
+# Add _crawlers and project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(project_root, '_crawlers'))
+sys.path.insert(0, project_root)
+
+from helpers.Job import Job
+from push_mongo import push_batch
+
+# Search keywords (roles), mixed order
+SEARCH_KEYWORDS = [
+    "Data Scientist",
+    "Restaurant Manager",
+    "HR Coordinator",
+    "Civil Engineer",
+    "Tax Consultant",
+    "Professor",
+    "Retail Associate",
+    "Product Designer",
+    "Accounts Payable Specialist",
+    "Lab Technician",
+    "Business Development Representative (BDR)",
+    "Nurse",
+    "UX Designer",
+    "Logistics Manager",
+    "Compliance Officer",
+    "Software Engineer",
+    "Education Coordinator",
+    "Account Executive",
+    "Chemical Engineer",
+    "Recruiter",
+    "Financial Analyst",
+    "Store Manager",
+    "Psychologist",
+    "Procurement Specialist",
+    "Backend Developer",
+    "Academic Advisor",
+    "Sales Director",
+    "Graphic Designer",
+    "Industrial Engineer",
+    "Talent Acquisition Specialist",
+    "Investment Analyst",
+    "Hotel Manager",
+    "Medical Assistant",
+    "Strategy Manager",
+    "Supply Chain Analyst",
+    "Electrical Engineer",
+    "Teacher",
+    "Account Manager",
+    "Marketing Manager",
+    "Warehouse Manager",
+    "Healthcare Administrator",
+    "Business Analyst",
+    "Full-Stack Developer",
+    "Mechanical Engineer",
+    "Lecturer",
+    "Sales Representative",
+    "Program Manager",
+    "Data Engineer",
+    "Chef",
+    "HR Business Partner",
+    "UI Designer",
+    "Operations Manager",
+    "Doctor",
+    "Business Development Manager",
+    "Product Manager",
+    "Machine Learning Engineer",
+    "Paralegal",
+    "Finance Manager",
+    "Research Scientist",
+    "Sales Manager",
+    "Creative Director",
+    "Project Manager",
+    "DevOps Engineer",
+    "Biologist",
+    "Legal Counsel",
+    "Accountant",
+    "Pharmacist",
+    "Help Desk Technician",
+    "Art Director",
+    "QA Engineer",
+    "Customer Success Manager",
+    "Chemist",
+    "Lawyer",
+    "System Administrator",
+    "Frontend Developer",
+    "Customer Support Specialist",
+    "HR Manager",
+    "Auditor",
+    "Technical Support Engineer",
+]
+
+# Locations (countries) to search. Order: (display name, LinkedIn geo_id for API).
+# Geo IDs from LinkedIn job search; unknown countries use DEFAULT_GEO_ID.
+LOCATIONS = [
+    "United States",
+    "India",
+    "Canada",
+    "Mexico",
+    "United Kingdom",
+    "Germany",
+    "France",
+    "Netherlands",
+    "Poland",
+    "Spain",
+    "Portugal",
+    "Italy",
+    "Sweden",
+    "Switzerland",
+    "Ukraine",
+    "Romania",
+    "Czech Republic",
+    "Pakistan",
+    "Bangladesh",
+    "China",
+    "Japan",
+    "Vietnam",
+    "Indonesia",
+    "Philippines",
+    "Singapore",
+    "Malaysia",
+    "Thailand",
+    "Brazil",
+    "Argentina",
+    "Colombia",
+    "Chile",
+    "Peru",
+    "Uruguay",
+    "Nigeria",
+    "Egypt",
+    "Kenya",
+    "South Africa",
+    "Morocco",
+]
+# Known LinkedIn geo_ids (country-level). Others fall back to US.
+LOCATION_GEO_IDS = {
+    "United States": "103644278",
+    "Canada": "101174742",
+    "United Kingdom": "101165590",
+    "India": "102713980",
+    "Germany": "103323778",
+    "France": "105015875",
+    "Australia": "101452733",
+}
+DEFAULT_GEO_ID = "103644278"
+
+# Job posted time filter: r86400 = past 24 hours (LinkedIn f_TPR param). None = no filter.
+# Other options: r604800 = 7 days, r2592000 = 30 days
+TIME_FILTER_TPR = "r86400"
+
+# Profiles loaded from LinkedinCookie.json (same folder as run.py).
+# Each entry: {"bcookie": "", "bscookie": "", "JSESSIONID": "", "li_at": ""}. Extra keys are included in Cookie header.
+COOKIE_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "LinkedinCookie.json")
+
+def _load_profiles():
+    with open(COOKIE_JSON_PATH, "r", encoding="utf-8") as f:
+        entries = json.load(f)
+    profiles = []
+    for item in entries:
+        if "JSESSIONID" not in item:
+            raise ValueError("LinkedinCookie.json: each entry must have 'JSESSIONID'")
+        cookie_parts = [f"{k}={v}" for k, v in item.items()]
+        cookie_str = "; ".join(cookie_parts)
+        profiles.append({
+            "cookie": cookie_str,
+            "csrf_token": item["JSESSIONID"],
+        })
+    return profiles
+
+# Location name -> 2-letter country code for job document (country field)
+LOCATION_TO_COUNTRY_CODE = {
+    "United States": "us", "Canada": "ca", "Mexico": "mx", "United Kingdom": "gb",
+    "Germany": "de", "France": "fr", "Netherlands": "nl", "Poland": "pl", "Spain": "es",
+    "Portugal": "pt", "Italy": "it", "Sweden": "se", "Switzerland": "ch", "Ukraine": "ua",
+    "Romania": "ro", "Czech Republic": "cz", "India": "in", "Pakistan": "pk", "Bangladesh": "bd",
+    "China": "cn", "Japan": "jp", "South Korea": "kr", "Vietnam": "vn", "Indonesia": "id",
+    "Philippines": "ph", "Singapore": "sg", "Malaysia": "my", "Thailand": "th", "Brazil": "br",
+    "Argentina": "ar", "Colombia": "co", "Chile": "cl", "Peru": "pe", "Uruguay": "uy",
+    "Nigeria": "ng", "Egypt": "eg", "Kenya": "ke", "South Africa": "za", "Morocco": "ma",
+}
+
+COUNTRY_GEO_IDS = {
+    'us': '103644278',      
+    'in': '102713980',
+}
+
+COUNTRY_NAMES = {
+    'us': 'United States 🇺🇸',
+    'in': 'India 🇮🇳'
+}
+
+
+logger = logging.getLogger(__name__)
+def configure_logging(level=logging.INFO):
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        )
+
+import asyncio
+from playwright.async_api import async_playwright
+
+
+class LinkedInJobScraper:
+    def __init__(self, cookie_data, csrf_token):
+        self.session = requests.Session()
+        self.seen_urls = set()  # avoid duplicate jobs within a run
+        self.timeout = 20
+        self.base_headers = {
+            'User-Agent': "com.linkedin.android/202001 (Linux; U; Android 13; en_GB; 23106RN0DA; Build/TP1A.220624.014; Cronet/127.0.6533.65)",
+            'x-restli-protocol-version': "2.0.0",
+            'x-li-graphql-pegasus-client': "true",
+            'accept-language': "en-US",
+            'csrf-token': csrf_token,
+            'x-li-page-instance': "urn:li:page:p_flagship3_search_srp_jobs;0ghXYv60TnSnF/gPLkvqpw==",
+            'x-li-track': "{\"osName\":\"Android OS\",\"osVersion\":\"33\",\"clientVersion\":\"4.1.1112.1\",\"clientMinorVersion\":202001,\"model\":\"Xiaomi_23106RN0DA\",\"displayDensity\":2,\"displayWidth\":720,\"displayHeight\":1438,\"dpi\":\"xhdpi\",\"deviceType\":\"android\",\"appId\":\"com.linkedin.android\",\"deviceId\":\"a4330548-42ce-4424-8333-0a87503f7fda\",\"timezoneOffset\":1,\"timezone\":\"Africa\\/Lagos\",\"storeId\":\"us_googleplay\",\"isAdTrackingLimited\":false,\"mpName\":\"voyager-android\",\"mpVersion\":\"2.189.128\"}",
+            'x-li-pageforestid': "d2085762-feb4-4e74-a717-f80f2e4beaa7",
+            'x-li-pem-metadata': "Voyager - Careers - Jobs Search=jobs-search-result-list-load,Voyager - Careers - Critical - careers-api=jobs-search-result-list-load",
+            'x-restli-symbol-table-name': "voyager-21477",
+            'x-li-lang': "en_US",
+            'priority': "u=0, i",
+            'Cookie': cookie_data,
+        }
+
+        self.playwright = None
+        self.browser = None
+        self.context = None
+
+    async def start_browser(self):
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(headless=True)
+        self.context = await self.browser.new_context()
+
+    def close(self):
+        # Synchronous helper for closing; prefer using async `close_browser` when in an event loop
+        self.session.close()
+        try:
+            asyncio.run(self.close_browser())
+        except RuntimeError:
+            # Running inside an event loop; caller should use await close_browser()
+            logger.debug("Event loop running; use await close_browser() to close Playwright resources")
+
+    async def close_browser(self):
+        """Async close for Playwright resources. Use this when running inside an event loop."""
+        try:
+            if self.context:
+                await self.context.close()
+        except Exception:
+            logger.debug("Error closing context", exc_info=True)
+        try:
+            if self.browser:
+                await self.browser.close()
+        except Exception:
+            logger.debug("Error closing browser", exc_info=True)
+        try:
+            if self.playwright:
+                await self.playwright.stop()
+        except Exception:
+            logger.debug("Error stopping playwright", exc_info=True)
+
+    async def get_descriptions(self, urls: list[str], batch_size: int = 4, delay_between_batches: float = 1.0) -> dict[str, str]:
+        """Fetch job descriptions in batches. Larger batch_size and smaller delay = faster (higher rate-limit risk)."""
+        results = {}
+
+        async def get_description(url, retries: int = 2):
+            for attempt in range(retries + 1):
+                page = await self.context.new_page()
+                try:
+                    await page.goto(url, timeout=60000)
+                    await page.wait_for_selector("div.show-more-less-html__markup", timeout=20000)
+                    element = await page.query_selector("div.show-more-less-html__markup")
+                    description = await element.inner_html() if element else ""
+                    results[url] = description
+                    return
+                except Exception as e:
+                    if attempt < retries:
+                        await asyncio.sleep(1.5 * (attempt + 1))
+                    else:
+                        logger.debug("Failed to fetch description for %s: %s", url[:60], e)
+                        results[url] = None
+                finally:
+                    await page.close()
+
+        for i in range(0, len(urls), batch_size):
+            batch = urls[i : i + batch_size]
+            await asyncio.gather(*(get_description(url) for url in batch))
+            if i + batch_size < len(urls):
+                await asyncio.sleep(delay_between_batches)
+
+        return results
+
+    def fetch_jobs_page(self, start, count=25, search="software engineer", country_code='us', geo_id=None):
+        encoded_search = urllib.parse.quote(urllib.parse.quote(search))
+        if geo_id is None:
+            geo_id = getattr(self, "geo_id", None)
+        if geo_id is None:
+            geo_id = COUNTRY_GEO_IDS.get(country_code.lower(), COUNTRY_GEO_IDS['us'])
+
+        f_tpr = f"%26f_TPR%3D{TIME_FILTER_TPR}" if TIME_FILTER_TPR else ""
+        url = (
+            f"https://www.linkedin.com/voyager/api/graphql?"
+            f"variables=(deepLinkUrl:https%3A%2F%2Fwww.linkedin.com%2Fjobs%2Fsearch%3F"
+            f"keywords%3D{encoded_search}%26geoId%3D{geo_id}"
+            f"{f_tpr}"
+            f"%26origin%3DHISTORY%26spellCorrectionEnabled%3Dtrue,"
+            f"includeJobState:true,count:{count},start:{start})"
+            f"&queryName=JobCardsByJobSearchDeepLink"
+            f"&queryId=voyagerJobsDashJobCards.68c22d067df07e8349f6e837243c93a9"
+        )
+
+        headers = {**self.base_headers, 'x-udid': str(uuid.uuid4())}
+
+        try:
+            response = self.session.get(url, headers=headers, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+
+            if 'errors' in data and data.get('data', {}).get('jobsDashJobCardsByJobSearchDeepLink') is None:
+                for error in data.get('errors', []):
+                    if error.get('extensions', {}).get('classification') == 'DataFetchingException':
+                        logger.warning("DataFetchingException for page start=%s", start)
+                        return {'error': 'DataFetchingException'}
+
+            return data
+        except requests.exceptions.RequestException as exc:
+            logger.error("HTTP request failed for page start=%s: %s", start, exc)
+            return None
+        except ValueError as exc:
+            logger.error("JSON decode failed for page start=%s: %s", start, exc)
+            return None
+        except Exception:
+            logger.exception("Unexpected error fetching page start=%s", start)
+            return None
+
+    @staticmethod
+    def parse_salary(text):
+        if not text:
+            return {
+                "min_value": None,
+                "max_value": None,
+                "wage_type": None,
+                "currency": None
+            }
+
+        text = text.strip()
+
+        salary_part = text.split("·")[0].strip()
+
+        if not re.search(r"[\$£€]", salary_part):
+            return {
+                "min_value": None,
+                "max_value": None,
+                "wage_type": None,
+                "currency": None
+            }
+
+        wage_type = None
+        if re.search(r"/\s*yr", salary_part, re.IGNORECASE):
+            wage_type = "yearly"
+        elif re.search(r"/\s*hr", salary_part, re.IGNORECASE):
+            wage_type = "hourly"
+        elif re.search(r"/\s*mo", salary_part, re.IGNORECASE):
+            wage_type = "monthly"
+        elif re.search(r"/\s*wk", salary_part, re.IGNORECASE):
+            wage_type = "weekly"
+
+        if not wage_type:
+            return {
+                "min_value": None,
+                "max_value": None,
+                "wage_type": None,
+                "currency": None
+            }
+
+        currency = None
+        if "$" in salary_part:
+            currency = "USD"
+        elif "£" in salary_part:
+            currency = "GBP"
+        elif "€" in salary_part:
+            currency = "EUR"
+
+        matches = re.findall(r"[\$£€]?\s*([\d]+(?:\.\d+)?)\s*(K|k)?", salary_part)
+
+        if not matches:
+            return {
+                "min_value": None,
+                "max_value": None,
+                "wage_type": None,
+                "currency": None
+            }
+
+        values = []
+        for number, k_symbol in matches:
+            value = float(number)
+            if k_symbol:
+                value *= 1000
+            values.append(value)
+
+        values = list(dict.fromkeys(values))
+
+        if len(values) == 1:
+            min_value = max_value = values[0]
+        else:
+            min_value = values[0]
+            max_value = values[1]
+
+        return {
+            "min_value": min_value,
+            "max_value": max_value,
+            "wage_type": wage_type,
+            "currency": currency
+        }
+
+    def extract_job_info(self, job_card, fetch_description=True):
+        try:
+            job_data = job_card['jobCard']['jobPostingCard']
+
+            location = job_data.get('secondaryDescription', {}).get('text', '')
+            job_url = job_data['cardActionV2']['navigationAction']['actionTarget'].split("?")[0]
+            if job_url in self.seen_urls:
+                logger.info("Job already seen, skipping: %s", job_url)
+                return None
+            self.seen_urls.add(job_url)
+
+            job_id = job_data.get('jobPosting', {}).get('trackingUrn', '').split(":")[-1]
+
+            easy_apply = any(item.get('type') == 'EASY_APPLY_TEXT' for item in job_data.get('footerItems', []))
+
+            title = job_data.get('jobPostingTitle', '')
+            description = self.parse_description(job_url) if fetch_description else None
+
+            company_name = job_data.get('primaryDescription', {}).get('text', '')
+            detail_data = job_data.get("companyLogo", {}).get("attributes", [{}])[0].get("detailData", {})
+            vector_image = detail_data.get("companyLogo", {}).get("logoResolutionResult", {}).get("vectorImage", {})
+            root_url = vector_image.get("rootUrl", "")
+            sub_url = vector_image.get("artifacts", [{}])[0].get("fileIdentifyingUrlPathSegment", "")
+            company_logo = root_url + sub_url if root_url and sub_url else None
+
+            salary_obj = job_data.get("tertiaryDescription")
+            if salary_obj:
+                salary_text = salary_obj.get("text", "")
+                salary_info = self.parse_salary(salary_text)
+                min_value = salary_info["min_value"]
+                max_value = salary_info["max_value"]
+                wage_type = salary_info["wage_type"]
+                currency = salary_info["currency"]
+            else:
+                min_value = None
+                max_value = None
+                wage_type = None
+                currency = None
+
+            is_remote = False
+            if "remote" in location.lower() or "remote" in title.lower():
+                is_remote = True
+
+            footerItems = job_data.get("footerItems", [])
+            created_at = datetime.now(timezone.utc)
+            try:
+                for item in footerItems:
+                    if item.get("type") == "LISTED_DATE":
+                        posted_date_tmp = item.get("timeAt")
+                        created_at = datetime.fromtimestamp(posted_date_tmp / 1000, tz=timezone.utc)
+                        break
+            except:
+                pass
+        
+            job_obj = Job(
+                title=title,
+                location=location,
+                address=location,
+                latitude=0,
+                longitude=0,
+                job_type="Full-Time",
+                description=description,
+                salary_type=wage_type,
+                salary_currency=currency,
+                min_wage=min_value,
+                max_wage=max_value,
+                salary_amount=0,
+                wage_type=wage_type,
+                category="",
+                industry="",
+                company_name=company_name,
+                company_logo=company_logo,
+                country=self.country_code.upper(),
+                created_at=created_at,
+                source=job_url,
+                apply_now_url=job_url,
+                easy_apply=easy_apply,
+                remote=is_remote,
+                job_site="Linkedin",
+            ).to_json()
+            return job_obj
+        
+        except KeyError as exc:
+            logger.warning("Missing key while extracting job info: %s", exc)
+            return None
+        except Exception:
+            logger.exception("Unexpected error extracting job info")
+            return None
+
+    async def process_page(self, args):
+        start, count, search, country, retry_count = args
+        data = None
+        for attempt in range(retry_count + 1):
+            # fetch_jobs_page is synchronous (requests); run it in a thread to avoid blocking event loop
+            try:
+                data = await asyncio.to_thread(self.fetch_jobs_page, start, count, search, country)
+            except Exception as e:
+                data = None
+            if data:
+                if 'error' in data and data['error'] == 'DataFetchingException':
+                    return {'error': 'DataFetchingException'}
+                break
+            await asyncio.sleep(2 ** attempt)
+
+        if not data:
+            logger.error("Failed processing page start=%s after %s attempts", start, retry_count + 1)
+            return None
+
+        page_jobs = []
+        try:
+            job_cards = data['data']['jobsDashJobCardsByJobSearchDeepLink']['elements']
+            for card in job_cards:
+                job_info = self.extract_job_info(card, fetch_description=False)
+                if job_info:
+                    page_jobs.append(job_info)
+
+            if page_jobs:
+                urls = [job['job']["source"] for job in page_jobs]
+                # Use the async get_descriptions directly (we're already in an event loop)
+                descriptions = await self.get_descriptions(urls)
+                for job in page_jobs:
+                    url = job['job']["source"]
+                    job['job']['description'] = descriptions.get(url)
+
+        except KeyError as e:
+            logger.error("Unexpected API structure for page start=%s: %s", start, e)
+            return None
+        except Exception:
+            logger.exception("Unexpected error processing page start=%s", start)
+            return None
+
+        return page_jobs
+
+    async def _collect_jobs_for_pair(self, search: str, location_name: str):
+        """Collect all jobs for one (keyword, location) pair. No limit."""
+        self.country_name = location_name
+        self.geo_id = LOCATION_GEO_IDS.get(location_name, DEFAULT_GEO_ID)
+        self.country_code = LOCATION_TO_COUNTRY_CODE.get(location_name, "us")
+        self.seen_urls = set()
+
+        initial_data = await asyncio.to_thread(self.fetch_jobs_page, 0, 1, search, self.country_code)
+        if not initial_data:
+            logger.error("Failed to fetch initial data for %r in %s", search, location_name)
+            return []
+
+        if "error" in initial_data and initial_data["error"] == "DataFetchingException":
+            logger.error("DataFetchingException for %r in %s", search, location_name)
+            return []
+
+        total_jobs = initial_data["data"]["jobsDashJobCardsByJobSearchDeepLink"]["paging"]["total"]
+        logger.info("[%s | %s] Total jobs: %s", search, location_name, total_jobs)
+
+        count = 10
+        total_pages = (total_jobs + count - 1) // count
+        page_args = [(i * count, count, search, self.country_code, 3) for i in range(total_pages)]
+
+        all_jobs = []
+        pbar = tqdm(
+            total=total_jobs,
+            desc=f"{search[:20]}... | {location_name}",
+            unit="job",
+        )
+
+        for args in page_args:
+            try:
+                result = await self.process_page(args)
+                if result is None:
+                    logger.error("Error processing page for %r in %s", search, location_name)
+                    break
+                if isinstance(result, dict) and result.get("error") == "DataFetchingException":
+                    logger.error("DataFetchingException for %r in %s", search, location_name)
+                    break
+                for job in result:
+                    all_jobs.append(job)
+                pbar.update(len(result))
+            except Exception:
+                logger.exception("Unhandled exception for %r in %s", search, location_name)
+                break
+
+        pbar.close()
+        logger.info("Collected %s jobs for %r in %s", len(all_jobs), search, location_name)
+        return all_jobs
+
+    async def get_all_jobs(self):
+        """Run scraping for every (keyword, location) pair; push each batch to MongoDB.
+        Order: fix location first, then iterate keywords for that location."""
+        total_pairs = len(SEARCH_KEYWORDS) * len(LOCATIONS)
+        pair_num = 0
+        for location_name in LOCATIONS:
+            for keyword in SEARCH_KEYWORDS:
+                pair_num += 1
+                logger.info("--- Pair %s/%s: %r in %s ---", pair_num, total_pairs, keyword, location_name)
+                all_jobs = await self._collect_jobs_for_pair(keyword, location_name)
+                if all_jobs:
+                    for job_doc in all_jobs:
+                        job_doc["job_site"] = "Linkedin"
+                    logger.info("Pushing %s jobs to MongoDB...", len(all_jobs))
+                    push_batch(all_jobs)
+                    logger.info("MongoDB push complete: %s jobs", len(all_jobs))
+
+
+async def _run_one_scraper(profile, profile_label):
+    """Run a single scraper for one profile. Used for concurrent runs."""
+    scraper = LinkedInJobScraper(
+        cookie_data=profile["cookie"],
+        csrf_token=profile["csrf_token"],
+    )
+    await scraper.start_browser()
+    try:
+        await scraper.get_all_jobs()
+    finally:
+        try:
+            await scraper.close_browser()
+        except Exception:
+            try:
+                scraper.close()
+            except Exception:
+                pass
+
+
+async def get_all_jobs():
+    configure_logging()
+    profiles = _load_profiles()
+    if not profiles:
+        logger.error("LinkedinCookie.json has no profiles")
+        return
+    logger.info("Starting %s profile(s) concurrently", len(profiles))
+    tasks = [_run_one_scraper(profile, f"Profile_{i}") for i, profile in enumerate(profiles)]
+    await asyncio.gather(*tasks)
+    logger.info("All profiles finished")
+
+
+# Run full scrape, then wait this many hours before running again (e.g. 24 = restart every 24 hours).
+RUN_INTERVAL_HOURS = 24
+
+async def run_forever():
+    """Loop: run all profiles, then sleep RUN_INTERVAL_HOURS and repeat."""
+    while True:
+        await get_all_jobs()
+        logger.info("Sleeping %s hours until next run...", RUN_INTERVAL_HOURS)
+        await asyncio.sleep(RUN_INTERVAL_HOURS * 3600)
+
+
+if __name__ == "__main__":
+    asyncio.run(run_forever())

@@ -1,0 +1,72 @@
+Personal Details
+
+Focused Job positions to bid for: Python/Golang/C# & DevOps
+
+Full Legal Name: Vernon Simms
+Skill set/tech stacks and years of experience for each
+Python: 10+ years
+Golang: 8+ years
+C#: 10+ years
+DevOps: 8+ years
+Other skills: 6+ years
+
+Full Address 1: 15347 Stillfield Ct
+City: Centreville
+Zip code: 20120
+State: Virginia
+Country: US
+Work Authorization: US Citizen
+Date of Birth: Feb 15th, 1987
+
+Github Link: 
+https://github.com/Howlmaster
+
+Portfolio/Website Link: 
+https://www.getflair.io/
+
+
+Email Address and Password [Make sure the email is the same one on the resume(s)]
+email: vsimmsmaurice@engineer.com
+pass: tkpTF$-zQ<tM/z2
+
+LinkedIn Profile Link: 
+https://www.linkedin.com/in/vernon-m-simms-044b00399/
+
+Other social media links if you have: No
+Phone Number: 1 305 791 1542
+
+
+Ethnicity and Gender Details
+
+Gender: Male
+Ethnicity: Asian
+Veteran Status: No
+Disability Status: No
+
+Compensation Details (USD)
+
+
+https://github.com/Howlmaster/
+Hourly 60~80$
+Monthly 10~12k
+Annually 120~150k
+
+Availability to start working: Immediately
+
+
+
+https://www.indeed.com/jobs?q=Senior+Web+Developer+%24105%2C000&l=Remote&sc=0kf%3Aattr%28DSQF7%29%3B&radius=50&from=searchOnDesktopSerp&salaryType=%24105%2C000&start=60&vjk=4c85cc602800f6e3
+
+
+
+Startups often require wearing many hats. Can you describe a project where you had to lead an initiative outside of your core job description? How did you manage the lack of established guidelines?
+
+
+Startups often require wearing many hats. Can you describe a project where you had to lead an initiative outside of your core job description? How did you manage the lack of established guidelines?
+
+In my startup, I was the sole engineer but stepped up to lead sales outreach when we needed to close our first paying customers. With no established sales process, I created a simple framework: researched target companies, crafted personalized cold emails based on their pain points, tracked responses in a shared Google Sheet, and iterated weekly based on what converted.
+
+I managed the ambiguity by setting small milestones (10 emails/day, 20% response goal), learning from rejections, and borrowing playbooks from successful SaaS founders I'd studied. We landed 3 customers in 6 weeks, which funded our next dev hires. This taught me to break big unknowns into testable steps and stay customer-focused when guidelines don't exist.
+
+
+Here's my GitHub portfolio showcasing full-stack work: https://github.com/Howlmaster
