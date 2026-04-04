@@ -1,8 +1,9 @@
 Real One (Camilo's)
 
-4413 5829 0419 6821
-28/01
-178
+
+5265 5700 4509 2211
+expiration Date 04/31      
+CVV 960
 
 
 Nubank Card
@@ -11,7 +12,10 @@ Card Number: 5288 9285 6194 1604
 09/32
 806
 
-
+Cristian Camilo Gamboa Vargas
+Account 4884 5027 4474
+Banco Davivienda
+Swift code CAFECOBBXXX
 
 Joshua Dela Curz
 

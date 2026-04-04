@@ -1,12 +1,15 @@
-
+// email
 ccamilogv1016@gmail.com
 mpm.haru
+
+
+It is a dry cleaner where they process jeans.
 
 
 +57 3123583748 // Company Phone
 
 
-10/16/2005
+10/16/2005   // birthday
 
 
 1.027.524.975 //ID Card number
@@ -35,12 +38,29 @@ Sara.0633
 ID card number: 1027524975
 
 
-Address: calle 24 c # 23 - 50
+Address: Cl. 24 c sur # 23 - 50   // old one
+
+
+Carrera 24D #23 Sur-59   // new one
+
+
+Cra. 24D # 23-59
+
+
+Cra. 24D # 23-59, Rafael Uribe Uribe, Bogotá, D.C., Bogotá, Bogotá, D.C., Colombia
+
+
+
+
+Calle 39i Sur # 68A-92
+
 Bogota DC, 111841
 City: Bogota
 Zip code: 111841
 State Bogota
 Country, Colombia
+
+Cl. 39i Sur # 68A-92, Kennedy, Bogotá, D.C., Bogotá, Bogotá, D.C., Colombia
 
 
 Cristian Camilo Gamboa Vargas
