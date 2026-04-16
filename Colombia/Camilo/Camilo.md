@@ -1,12 +1,27 @@
-// email
+////////////////////////////	email	////////////////////////////////
+
+
 ccamilogv1016@gmail.com
 mpm.haru
+
+/////////////////////////////////////////////////////////////////////////
+
+///////////////////////		contacting persons	//////////////////////////
+
+@Achilles_Happy
+
+@aetherfox0822
+
+///////////////////////////////////////////////////////////////////////////
+
 
 
 It is a dry cleaner where they process jeans.
 
 
-+57 3123583748 // Company Phone
+///////////////////////		Company hone   ///////////////////////////////
+
++57 3123583748 
 
 
 10/16/2005   // birthday
@@ -14,28 +29,65 @@ It is a dry cleaner where they process jeans.
 
 1.027.524.975 //ID Card number
 
+/////////////////////////////////////////////////////////////////////////
 
-Anydesk
+Whatsapp
+
+https://drive.google.com/file/d/14PE6ED9XFJWt-qwahNdG--8v28VMhckx/view?usp=drive_link
+
+TG
+
+https://drive.google.com/file/d/1pKupsSG90G2v5ox7pOTQc6WVrwPnyxob/view?usp=drive_link
+
+
+
+
+///////////////////////////   Anydesk 	//////////////////////////////////
+
 1051778774
 sara0633
 
+1079980643
+sara0633
 
 
+// Camilo Phone
++57 3213021245  
 
-+57 3213021245  // Camilo Phone
+///////////////////////////////// 	Paypal	 ///////////////////////////////////////
 
-
-Paypal
 
 ccamilogv16@gmail.com
 CristianGamboa586
-Sara.0633
+Sara0633
 
+https://paypal.me/CristianGamboa586
+
+
+/////////////////////// 	Paypal Billing Address 	//////////////////////////////////
+
+Calle 39i Sur # 68A-92
+
+Bogota DC, 111841
+City: Bogota
+Zip code: 111841
+State Bogota
+Country, Colombia
+
+//////////////////////////		 Wise 	///////////////////////////////////////////////
 
 ccamilogv16@gmail.com
 Sara.0633
 
 ID card number: 1027524975
+
+
+//////////////////////////	 Payoneer	///////////////////////////////////////////
+
+ccamilogv1016@gmail.com
+Sara.0633
+
+//////////////////////////////// Address //////////////////////////////////////
 
 
 Address: Cl. 24 c sur # 23 - 50   // old one
@@ -52,13 +104,8 @@ Cra. 24D # 23-59, Rafael Uribe Uribe, Bogotá, D.C., Bogotá, Bogotá, D.C., Col
 
 
 
-Calle 39i Sur # 68A-92
 
-Bogota DC, 111841
-City: Bogota
-Zip code: 111841
-State Bogota
-Country, Colombia
+//////////////////// Wise Billing Address ////////////////////////////////
 
 Cl. 39i Sur # 68A-92, Kennedy, Bogotá, D.C., Bogotá, Bogotá, D.C., Colombia
 
