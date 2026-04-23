@@ -8,8 +8,16 @@ luisger312@outlook.com
 123qwe!@#QWE
 
 
+luisrodrig2026@outlook.com
 
-https://linkedin.com/in/luis-g-rodriguez-medina-a765453aa/
+@Q#$adfjkl4325PDf
+
+
+https://www.linkedin.com/in/rodriguez-medina/
+
+https://www.getflair.io/
+
+1727	58
 
 
 +57 3150165493

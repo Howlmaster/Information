@@ -29,6 +29,9 @@ It is a dry cleaner where they process jeans.
 
 1.027.524.975 //ID Card number
 
+1027524975 //ID Card number
+
+
 /////////////////////////////////////////////////////////////////////////
 
 Whatsapp
@@ -74,6 +77,13 @@ Zip code: 111841
 State Bogota
 Country, Colombia
 
+
+/////////////////////////////		Camilo's Mom whatsapp	////////////////////////
+
++57 3112641016
+
+///////////////////////////////////////////////////////////////////////////////
+
 //////////////////////////		 Wise 	///////////////////////////////////////////////
 
 ccamilogv16@gmail.com
@@ -110,19 +120,25 @@ Cra. 24D # 23-59, Rafael Uribe Uribe, Bogotá, D.C., Bogotá, Bogotá, D.C., Col
 Cl. 39i Sur # 68A-92, Kennedy, Bogotá, D.C., Bogotá, Bogotá, D.C., Colombia
 
 
+
+
 Cristian Camilo Gamboa Vargas
 Account 4884 5027 4474
 Banco Davivienda
 Swift code CAFECOBBXXX
 
 
+ccamilogv16@gmail.com
+sara.0633
 
-Card
+Card for Banco Davivienda
 
 Cristian
 5265 5700 4509 2211
 expiration Date 04/31      
 CVV 960
+
+29031016
 
 
 
