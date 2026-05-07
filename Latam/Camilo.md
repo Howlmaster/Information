@@ -20,7 +20,10 @@ https://github.com/Howlmaster/
 
 
 Linkedin: 
-https://www.linkedin.com/in/cristiangamboa1016/
+https://www.linkedin.com/in/cristian-c-gamboa1016/
+
+
+https://www.linkedin.com/in/cristian-c-gamboa/
 
 
 https://vocaroo.com/16DXtrv0KNqE
@@ -56,14 +59,24 @@ Country, Colombia
 
 
 
+https://app.terminal.io/
+https://himalayas.app/jobs/countries/colombia/software-developer?page=5
+
+
+https://himalayas.app/@cristiancamilogamboa
+
+
+
 // Linkedin mail
 email: 
 crisgamboa1016@outlook.com
 pass: 
 !@#Camilosshkey0206???
 
+// Paypal
 
-
+thomaskiser1992@gmail.com
+Bgt0723@@
 
 
 

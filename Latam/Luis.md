@@ -18,7 +18,7 @@ https://www.linkedin.com/in/rodriguez-medina/
 https://www.getflair.io/
 
 1727	58
-
+ 
 
 +57 3150165493
 
